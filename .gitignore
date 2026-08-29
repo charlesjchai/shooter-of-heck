@@ -1,5 +1,4 @@
 .DS_Store
-*.swp
+*.sw[a-p]
 *.dSYM
 build
-.vscode
