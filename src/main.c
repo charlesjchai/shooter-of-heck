@@ -4,23 +4,36 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-jmp_buf exception_buffer;
+jmp_buf env;
 
 int main(void)
 {
+    /*char **canvass = calloc(80, sizeof(int *));
+    for (int i = 0; i < 80; i++)
+    {
+        canvass[i] = calloc(24, sizeof(int));
+    }canvass[0][1] = 'a';
+    obj_update(canvass, (Point){80, 24}, (GameObj){.pos = (Point){77, 20},
+    .size = (Point){5, 5}, .sprites[0] = "XOXOX\nOXOXO\nXOXOX\nOXOXO\nXOXOX"},
+    0); for (int i = 0; i < 24; i++) { for (int j = 0; j < 80; j++) { printf("%c
+    ", canvass[j][i] == 0 ? '.' : canvass[j][i]);
+        }
+        puts("\n");
+    }
+    SLEEP(4000);*/
     constexpr Point canvas_size = {80, 24};
 
-    int status = setjmp(exception_buffer);
+    int status = setjmp(env);
     if (status != 0)
-    {
+    { // Uh oh, handle exceptions!
         endwin();
         switch (status)
         {
         case ERRORCODE_WINDOW_ERR:
             int y, x;
             getmaxyx(stdscr, y, x);
-            fprintf(stderr, "Window is too small (%dx%d), at least %dx%d\n",
-                    x, y, canvas_size.x, canvas_size.y);
+            fprintf(stderr, "Window is too small (%dx%d), at least %dx%d\n", x,
+                    y, canvas_size.x, canvas_size.y);
             break;
 
         default:
@@ -28,7 +41,6 @@ int main(void)
                     status);
             break;
         }
-        
         return 1;
     }
 
@@ -39,14 +51,12 @@ int main(void)
     nodelay(stdscr, TRUE);
     keypad(stdscr, TRUE);
 
-    constexpr char spaceship1[] = "   A   \n"
-                                  "  / \\  \n"
-                                  "<[_ _]>\n"
-                                  "  W W  ";
-    constexpr char spaceship2[] = "   A   \n"
-                                  "  / \\  \n"
-                                  "<{_ _}>\n"
-                                  "  v v  ";
+    GameObj player_ship = {.pos = (Point){0, 0},
+                           .size = (Point){7, 4},
+                           .sprites = { "   A   \n"
+                                            "  / \\  \n"
+                                            "<[_ _]>\n"
+                                            "  W W  "}};
 
     // 2d array "canvas" that is modified and rendered
     char **canvas = calloc(canvas_size.x, sizeof(int *));
@@ -57,46 +67,39 @@ int main(void)
 
     Point max_size; // Current size of terminal window
     getmaxyx(stdscr, max_size.y, max_size.x);
-
+    
     WINDOW *win = newwin(canvas_size.y, canvas_size.x, 0, 0);
-    if (win == NULL)
-    {
-        endwin();
-        perror("Error initializing window\n");
-        return 1;
-    }
+    box(win, 0, 0);
+    wrefresh(win);
+    refresh();
+    if (win == nullptr)
+        longjmp(env, ERRORCODE_INIT_ERR);
 
     int WATCH = OK;
     int ch;
 
     while ((ch = getch()) != 'q')
     {
-        if (ch == KEY_RESIZE)
-        {
-            getmaxyx(stdscr, max_size.y, max_size.x);
-        }
         if (canvas_size.x > max_size.x || canvas_size.y > max_size.y)
         {
             /*endwin();
             fprintf(stderr, "Window is too small (%dx%d), at least %dx%d\n",
                     max_size.x, max_size.y, canvas_size.x, canvas_size.y);
             return 1;*/
-            longjmp(exception_buffer, ERRORCODE_WINDOW_ERR);
+            longjmp(env, ERRORCODE_WINDOW_ERR);
+        }
+        if (ch == KEY_RESIZE)
+        {
+            getmaxyx(stdscr, max_size.y, max_size.x);
         }
 
-        erase();
-        printw("%s", spaceship1);
-        refresh();
-        SLEEP(100);
-        erase();
-        printw("%s", spaceship2);
-        refresh();
-        SLEEP(100);
+        // werase(win);
+
+        wrefresh(win);
+        SLEEP(1000);
 
         if (WATCH != OK)
-        {
-            longjmp(exception_buffer, WATCH);
-        }
+            longjmp(env, WATCH);
     }
     endwin();
     return 0;
