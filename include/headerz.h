@@ -19,6 +19,12 @@
     } while (0)
 #endif // cool cross-platform SLEEP macro
 
+typedef enum
+{
+    ERRORCODE_IGNORE = OK,
+    ERRORCODE_WINDOW_ERR,
+} ErrorCode;
+
 typedef struct
 {
     int x;

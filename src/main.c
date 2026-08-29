@@ -1,9 +1,37 @@
 #include "headerz.h"
 #include "miniaudio.h"
+#include <setjmp.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+jmp_buf exception_buffer;
 
 int main(void)
 {
+    constexpr Point canvas_size = {80, 24};
+
+    int status = setjmp(exception_buffer);
+    if (status != 0)
+    {
+        endwin();
+        switch (status)
+        {
+        case ERRORCODE_WINDOW_ERR:
+            int y, x;
+            getmaxyx(stdscr, y, x);
+            fprintf(stderr, "Window is too small (%dx%d), at least %dx%d\n",
+                    x, y, canvas_size.x, canvas_size.y);
+            break;
+
+        default:
+            fprintf(stderr, "CRIKEY, PROCESS EXITED WITH EXIT CODE %d\n",
+                    status);
+            break;
+        }
+        
+        return 1;
+    }
+
     initscr();
     cbreak();
     noecho();
@@ -19,11 +47,18 @@ int main(void)
                                   "  / \\  \n"
                                   "<{_ _}>\n"
                                   "  v v  ";
-    constexpr Point target_size = {80, 24};
-    Point max_size;
+
+    // 2d array "canvas" that is modified and rendered
+    char **canvas = calloc(canvas_size.x, sizeof(int *));
+    for (int i = 0; i < canvas_size.x; i++)
+    {
+        canvas[i] = calloc(canvas_size.y, sizeof(int));
+    }
+
+    Point max_size; // Current size of terminal window
     getmaxyx(stdscr, max_size.y, max_size.x);
 
-    WINDOW *win = newwin(target_size.y, target_size.x, 0, 0);
+    WINDOW *win = newwin(canvas_size.y, canvas_size.x, 0, 0);
     if (win == NULL)
     {
         endwin();
@@ -40,12 +75,13 @@ int main(void)
         {
             getmaxyx(stdscr, max_size.y, max_size.x);
         }
-        if (target_size.x > max_size.x || target_size.y > max_size.y)
+        if (canvas_size.x > max_size.x || canvas_size.y > max_size.y)
         {
-            endwin();
+            /*endwin();
             fprintf(stderr, "Window is too small (%dx%d), at least %dx%d\n",
-                    max_size.x, max_size.y, target_size.x, target_size.y);
-            return 1;
+                    max_size.x, max_size.y, canvas_size.x, canvas_size.y);
+            return 1;*/
+            longjmp(exception_buffer, ERRORCODE_WINDOW_ERR);
         }
 
         erase();
@@ -59,10 +95,7 @@ int main(void)
 
         if (WATCH != OK)
         {
-            endwin();
-            fprintf(stderr, "CRIKEY, PROCESS EXITED WITH EXIT CODE %d\n",
-                    WATCH);
-            return WATCH;
+            longjmp(exception_buffer, WATCH);
         }
     }
     endwin();
