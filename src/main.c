@@ -1,21 +1,6 @@
-#include "curses.h"
+#include "headerz.h"
+#include "miniaudio.h"
 #include <stdio.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#define SLEEP(ms) Sleep(ms)
-#else
-#include <time.h>
-#define SLEEP(ms)                                                              \
-    do                                                                         \
-    {                                                                          \
-        struct timespec ts;                                                    \
-        long long ns = (long long)ms * 1000000;                                \
-        ts.tv_sec = ns / 1000000000;                                           \
-        ts.tv_nsec = ns % 1000000000;                                          \
-        nanosleep(&ts, NULL);                                                  \
-    } while (0)
-#endif
 
 int main(void)
 {
@@ -28,14 +13,41 @@ int main(void)
 
     constexpr char spaceship1[] = "   A   \n"
                                   "  / \\  \n"
-                                  "<{_ _}>\n"
+                                  "<[_ _]>\n"
                                   "  W W  ";
     constexpr char spaceship2[] = "   A   \n"
                                   "  / \\  \n"
                                   "<{_ _}>\n"
-                                  "  v v  ";int hi;
-    while ((hi = getch()) != 'q')
+                                  "  v v  ";
+    constexpr Point target_size = {80, 24};
+    Point max_size;
+    getmaxyx(stdscr, max_size.y, max_size.x);
+
+    WINDOW *win = newwin(target_size.y, target_size.x, 0, 0);
+    if (win == NULL)
     {
+        endwin();
+        perror("Error initializing window\n");
+        return 1;
+    }
+
+    int WATCH = OK;
+    int ch;
+
+    while ((ch = getch()) != 'q')
+    {
+        if (ch == KEY_RESIZE)
+        {
+            getmaxyx(stdscr, max_size.y, max_size.x);
+        }
+        if (target_size.x > max_size.x || target_size.y > max_size.y)
+        {
+            endwin();
+            fprintf(stderr, "Window is too small (%dx%d), at least %dx%d\n",
+                    max_size.x, max_size.y, target_size.x, target_size.y);
+            return 1;
+        }
+
         erase();
         printw("%s", spaceship1);
         refresh();
@@ -44,6 +56,14 @@ int main(void)
         printw("%s", spaceship2);
         refresh();
         SLEEP(100);
+
+        if (WATCH != OK)
+        {
+            endwin();
+            fprintf(stderr, "CRIKEY, PROCESS EXITED WITH EXIT CODE %d\n",
+                    WATCH);
+            return WATCH;
+        }
     }
     endwin();
     return 0;

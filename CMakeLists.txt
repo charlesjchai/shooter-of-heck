@@ -15,6 +15,11 @@ find_package(Curses REQUIRED)
 # Define the executable (target) and its source files
 add_executable(shooter
     src/main.c
+    src/headerz.c
+)
+
+target_include_directories(shooter PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 if(MSVC)
